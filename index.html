@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <title>WebGL Demo</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+
+    <body onload="InitWebGL();">
+        <canvas id="gl" width="800px" height="600px">
+            WebGL is not supported!
+        </canvas>
+
+        <textarea id="vs" spellcheck="false">
+    precision mediump float;
+
+attribute vec3 Pos;
+attribute vec3 Color;
+attribute vec2 UV; 
+attribute vec3 Normal;
+
+uniform vec4 Angle;   
+uniform vec3 Scale;    
+uniform mat4 Model;     
+uniform mat4 Projection;
+
+uniform float BendAmount;
+uniform float TwistAmount;
+uniform bool IsGrid;
+
+varying vec3 vertexColor;
+varying vec2 uv;
+varying vec3 normal;
+
+void main() {
+    float cx = cos(Angle.x), sx = sin(Angle.x);
+    float cy = cos(Angle.y), sy = sin(Angle.y);
+    float cz = cos(Angle.z), sz = sin(Angle.z);
+
+    mat4 rotX = mat4(
+        1.0, 0.0, 0.0, 0.0,
+        0.0, cx, -sx, 0.0,
+        0.0, sx,  cx, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    );
+
+    mat4 rotY = mat4(
+         cy, 0.0, sy, 0.0,
+         0.0, 1.0, 0.0, 0.0,
+        -sy, 0.0, cy, 0.0,
+         0.0, 0.0, 0.0, 1.0
+    );
+
+    mat4 rotZ = mat4(
+        cz, -sz, 0.0, 0.0,
+        sz,  cz, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    );
+
+
+    
+    mat4 R = rotZ * rotY * rotX;
+
+    vec3 scaledPos = Pos * Scale; //vi har allerede scale i Model, men det er til fremtidige anvendelser 
+
+    //twist om y
+    float angleTwist = IsGrid ? 0.0 : scaledPos.y * TwistAmount;
+    float c = cos(angleTwist);
+    float s = sin(angleTwist);
+
+    mat4 twist = mat4(
+        c, 0.0, -s, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        s, 0.0,  c, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    );
+
+    vec4 twistedPos = twist * vec4(scaledPos, 1.0);
+
+    //bend om x
+float bendAngle = IsGrid ? 0.0 : scaledPos.z * BendAmount;
+float cb = cos(bendAngle);
+float sb = sin(bendAngle);
+
+mat4 bend = mat4(
+    1.0, 0.0,   0.0, 0.0,
+    0.0,  cb,  -sb, 0.0,
+    0.0,  sb,   cb, 0.0,
+    0.0, 0.0,  0.0, 1.0
+);
+
+vec4 bentPos = bend * twistedPos;
+vec4 localPos = R * bentPos;
+
+
+    vec4 worldPos = Model * localPos;
+    gl_Position = Projection * worldPos;
+
+    mat3 normalMatrix = mat3(R);
+    normal = normalize(normalMatrix * Normal);
+
+    uv = UV;
+    vertexColor = Color;
+}
+
+
+        </textarea>
+        
+        <textarea id="fs" spellcheck="false">
+            precision mediump float;
+            
+            uniform sampler2D Texture; 
+            uniform vec4 Display;
+            uniform bool IsGrid;
+
+            varying vec3 vertexColor;
+            varying vec2 uv;
+            varying vec3 normal;
+
+            void main(){
+                if (IsGrid) {
+                    gl_FragColor = vec4(vertexColor, 1.0);
+                    return;
+                }
+
+                vec3 lightDirection = vec3(0.0, 0.0, 1.0);
+                float lambert = max(dot(normalize(lightDirection), normalize(normal)), 0.0);
+
+                //vec3 shade = Display.rgb * lambert;  //vi tilføjer ambient lighting nedenunder
+                float ambient = 0.1; 
+                vec3 shade = Display.rgb * (ambient + lambert * (1.0 - ambient));
+
+                
+
+                float p = abs(Display.w);
+
+                vec3 texture = texture2D(Texture, uv).rgb;
+                vec3 color = vertexColor;
+                gl_FragColor= vec4(mix(color, texture, p) * shade, 1.0);
+            }
+        </textarea>
+        
+        <select id="shape" onchange="InitShaders();">
+            <option selected>Triangle</option>
+            <option>Quad</option>
+            <option>Box</option>
+            <option>Subdivede Box</option>
+            <option>Cylinder</option>
+        </select>
+
+        <div id="ui">Generate UI for geometry here</div>
+
+
+
+        <script src="webgl.js" defer></script>  
+
+    </body>
+    </html>
