@@ -13,7 +13,7 @@
         </canvas>
 
         <textarea id="vs" spellcheck="false">
-    precision mediump float;
+precision mediump float;
 
 attribute vec3 Pos;
 attribute vec3 Color;
@@ -25,6 +25,7 @@ uniform vec3 Scale;
 uniform mat4 Model;     
 uniform mat4 Projection;
 
+uniform float BulgeAmount;
 uniform float BendAmount;
 uniform float TwistAmount;
 uniform bool IsGrid;
@@ -59,53 +60,55 @@ void main() {
         0.0, 0.0, 0.0, 1.0
     );
 
-
-    
     mat4 R = rotZ * rotY * rotX;
+    mat3 normalMatrix = mat3(R);
+    normal = normalize(normalMatrix * Normal);
 
-    vec3 scaledPos = Pos * Scale; //vi har allerede scale i Model, men det er til fremtidige anvendelser 
+    vec3 scaledPos = Pos * Scale;
 
-    //twist om y
+    //bulge
+    float dist = length(scaledPos.xy); 
+    float bulge = exp(-dist * dist * 4.0) * BulgeAmount;
+
+    //twist Y-aksen
     float angleTwist = IsGrid ? 0.0 : scaledPos.y * TwistAmount;
     float c = cos(angleTwist);
     float s = sin(angleTwist);
-
     mat4 twist = mat4(
         c, 0.0, -s, 0.0,
         0.0, 1.0, 0.0, 0.0,
         s, 0.0,  c, 0.0,
         0.0, 0.0, 0.0, 1.0
     );
-
     vec4 twistedPos = twist * vec4(scaledPos, 1.0);
 
-    //bend om x
-float bendAngle = IsGrid ? 0.0 : scaledPos.z * BendAmount;
-float cb = cos(bendAngle);
-float sb = sin(bendAngle);
+    //bend X-aksen
+    float bendAngle = IsGrid ? 0.0 : scaledPos.z * BendAmount;
+    float cb = cos(bendAngle);
+    float sb = sin(bendAngle);
+    mat4 bend = mat4(
+        1.0, 0.0,   0.0, 0.0,
+        0.0,  cb,  -sb, 0.0,
+        0.0,  sb,   cb, 0.0,
+        0.0, 0.0,  0.0, 1.0
+    );
+    vec4 bentPos = bend * twistedPos;
 
-mat4 bend = mat4(
-    1.0, 0.0,   0.0, 0.0,
-    0.0,  cb,  -sb, 0.0,
-    0.0,  sb,   cb, 0.0,
-    0.0, 0.0,  0.0, 1.0
-);
+    vec4 localPos = R * bentPos;
 
-vec4 bentPos = bend * twistedPos;
-vec4 localPos = R * bentPos;
-
+    if (!IsGrid) {
+        vec3 fromCenter = localPos.xyz;
+        float dist = length(fromCenter);
+        float bulge = exp(-dist * dist * 4.0) * BulgeAmount;
+        localPos.xyz += normalize(fromCenter) * bulge;
+    }
 
     vec4 worldPos = Model * localPos;
     gl_Position = Projection * worldPos;
 
-    mat3 normalMatrix = mat3(R);
-    normal = normalize(normalMatrix * Normal);
-
     uv = UV;
     vertexColor = Color;
 }
-
-
         </textarea>
         
         <textarea id="fs" spellcheck="false">

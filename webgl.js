@@ -161,6 +161,8 @@ function CreateGeometryBuffers(program)
     gl.uniform1f(twistGL, 0.0);
     let bendGL = gl.getUniformLocation(program, 'BendAmount');
     gl.uniform1f(bendGL, 0.0);
+    let bulgeGL = gl.getUniformLocation(program, 'BulgeAmount');
+    gl.uniform1f(bulgeGL, 0.0); 
 
     LoadTextures([
         'img/tekstur1.jpg',
@@ -580,6 +582,12 @@ function CreateGeometryUI() {
       <span id="bendValue">0</span>
     </div>
 
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <label for="bulge">Bulge:</label>
+      <input type="range" id="bulge" min="0" max="2" step="0.01" value="0" oninput="UpdateBulge()">
+      <span id="bulgeValue">0</span>
+    </div>
+
     `;
     ["scaleX", "scaleY", "scaleZ", "transX", "transY", "transZ"]
     .forEach(id => document.getElementById(id).addEventListener("input", UpdateModelMatrixFromUI));
@@ -729,11 +737,21 @@ function UpdateTwist() {
         Render();
     });
 }
+
 function UpdateBend() {
     const bendSlider = document.getElementById("bend");
     const bendVal = parseFloat(bendSlider.value);
     document.getElementById("bendValue").innerText = bendVal;
     gl.uniform1f(gl.getUniformLocation(gl.getParameter(gl.CURRENT_PROGRAM), "BendAmount"), bendVal);
+    Render();
+}
+
+function UpdateBulge() {
+    const slider = document.getElementById("bulge");
+    const value = parseFloat(slider.value);
+    document.getElementById("bulgeValue").innerText = value.toFixed(2);
+
+    gl.uniform1f(gl.getUniformLocation(gl.getParameter(gl.CURRENT_PROGRAM), "BulgeAmount"), value);
     Render();
 }
 
