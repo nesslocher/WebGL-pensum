@@ -18,6 +18,7 @@ var displayGL = 0;
 
 let mainVBO = null;
 
+
 function InitWebGL()
 {
 
@@ -229,7 +230,7 @@ function Render() {
     gl.uniform3f(gl.getUniformLocation(gl.getParameter(gl.CURRENT_PROGRAM), 'Scale'), 1.0, 1.0, 1.0);
     drawGrid();
     gl.depthMask(true);  
-}
+    }
 
     //modellen
     gl.uniform1i(isGridGL, 0);
@@ -584,7 +585,7 @@ function CreateGeometryUI() {
 
     <div style="display: flex; align-items: center; gap: 0.5rem;">
       <label for="bulge">Bulge:</label>
-      <input type="range" id="bulge" min="0" max="2" step="0.01" value="0" oninput="UpdateBulge()">
+      <input type="range" id="bulge" min="-5" max="5" step="0.01" value="0" oninput="UpdateBulge()">
       <span id="bulgeValue">0</span>
     </div>
 
@@ -616,13 +617,11 @@ function CreateGeometryUI() {
 
 }
 
-
 function AddGridLine(x1, y1, z1, x2, y2, z2, r, g, b) {
     activeVertices.push(x1, y1, z1, r, g, b, 0.0, 0.0, 0.0, 1.0, 0.0);
     activeVertices.push(x2, y2, z2, r, g, b, 0.0, 0.0, 0.0, 1.0, 0.0);
 
 }
-
 
 function CreateGroundGrid(width, depth, divX, divZ, yOffset = -0.5) {
     activeVertices = verticesGround;
@@ -984,7 +983,7 @@ document.getElementById('gl').addEventListener('mousemove', function(e) {
     if (typeof angleGL === 'number') return; 
 
     if (e.buttons == 1) {
-        angle[0] -= (mouseY - e.y) * 0.01;
+        angle[0] += (mouseY - e.y) * 0.01;
         angle[1] += (mouseX - e.x) * 0.01;
         gl.uniform4fv(angleGL, new Float32Array(angle));
         Render();

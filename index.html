@@ -13,102 +13,94 @@
         </canvas>
 
         <textarea id="vs" spellcheck="false">
-precision mediump float;
+            precision mediump float;
 
-attribute vec3 Pos;
-attribute vec3 Color;
-attribute vec2 UV; 
-attribute vec3 Normal;
+            attribute vec3 Pos;
+            attribute vec3 Color;
+            attribute vec2 UV; 
+            attribute vec3 Normal;
 
-uniform vec4 Angle;   
-uniform vec3 Scale;    
-uniform mat4 Model;     
-uniform mat4 Projection;
+            uniform vec4 Angle;   
+            uniform vec3 Scale;    
+            uniform mat4 Projection;
+            uniform mat4 Model;     
 
-uniform float BulgeAmount;
-uniform float BendAmount;
-uniform float TwistAmount;
-uniform bool IsGrid;
+            uniform float BulgeAmount;
+            uniform float BendAmount;
+            uniform float TwistAmount;
+            uniform bool IsGrid;
 
-varying vec3 vertexColor;
-varying vec2 uv;
-varying vec3 normal;
+            varying vec3 vertexColor;
+            varying vec2 uv;
+            varying vec3 normal;
+            
+             void main() {
+                float cx = cos(Angle.x), sx = sin(Angle.x);
+                float cy = cos(Angle.y), sy = sin(Angle.y);
+                float cz = cos(Angle.z), sz = sin(Angle.z);
+                 
+                mat4 rotX = mat4(
+                  1.0, 0.0, 0.0, 0.0,
+                  0.0, cx, -sx, 0.0,
+                  0.0, sx,  cx, 0.0,
+                  0.0, 0.0, 0.0, 1.0
+                );
+                
+                mat4 rotY = mat4(
+                    cy, 0.0, sy, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    -sy, 0.0, cy, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                );
+                
+                mat4 R =  rotY * rotX;
+                mat3 normalMatrix = mat3(R);
+                normal = normalize(normalMatrix * Normal);
+                
+                vec3 scaledPos = Pos * Scale;
 
-void main() {
-    float cx = cos(Angle.x), sx = sin(Angle.x);
-    float cy = cos(Angle.y), sy = sin(Angle.y);
-    float cz = cos(Angle.z), sz = sin(Angle.z);
+                //twist Y-aksen
+                float angleTwist = IsGrid ? 0.0 : scaledPos.y * TwistAmount;
+                float c = cos(angleTwist);
+                float s = sin(angleTwist);
+                mat4 twist = mat4(
+                    c, 0.0, -s, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    s, 0.0,  c, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                );
+                vec4 twistedPos = twist * vec4(scaledPos, 1.0);
 
-    mat4 rotX = mat4(
-        1.0, 0.0, 0.0, 0.0,
-        0.0, cx, -sx, 0.0,
-        0.0, sx,  cx, 0.0,
-        0.0, 0.0, 0.0, 1.0
-    );
 
-    mat4 rotY = mat4(
-         cy, 0.0, sy, 0.0,
-         0.0, 1.0, 0.0, 0.0,
-        -sy, 0.0, cy, 0.0,
-         0.0, 0.0, 0.0, 1.0
-    );
+                //bend X-aksen
+                float bendAngle = IsGrid ? 0.0 : scaledPos.z * BendAmount;
+                float cb = cos(bendAngle);
+                float sb = sin(bendAngle);
+                mat4 bend = mat4(
+                    1.0, 0.0,   0.0, 0.0,
+                    0.0,  cb,  -sb, 0.0,
+                    0.0,  sb,   cb, 0.0,
+                    0.0, 0.0,  0.0, 1.0
+                );
 
-    mat4 rotZ = mat4(
-        cz, -sz, 0.0, 0.0,
-        sz,  cz, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0
-    );
+                vec4 bentPos = bend * twistedPos;
+                
+                vec4 localPos = R * bentPos;
 
-    mat4 R = rotZ * rotY * rotX;
-    mat3 normalMatrix = mat3(R);
-    normal = normalize(normalMatrix * Normal);
+                if (!IsGrid) {
+                    vec3 fromCenter = localPos.xyz;
+                    float dist = length(fromCenter);
+                    float bulge = exp(-dist * dist * 4.0) * BulgeAmount;
+                    localPos.xyz += fromCenter * bulge;
+                }
 
-    vec3 scaledPos = Pos * Scale;
+                vec4 worldPos = Model * localPos;
+                gl_Position = Projection * worldPos;
 
-    //bulge
-    float dist = length(scaledPos.xy); 
-    float bulge = exp(-dist * dist * 4.0) * BulgeAmount;
+                uv = UV;
+                vertexColor = Color;
+            }
 
-    //twist Y-aksen
-    float angleTwist = IsGrid ? 0.0 : scaledPos.y * TwistAmount;
-    float c = cos(angleTwist);
-    float s = sin(angleTwist);
-    mat4 twist = mat4(
-        c, 0.0, -s, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        s, 0.0,  c, 0.0,
-        0.0, 0.0, 0.0, 1.0
-    );
-    vec4 twistedPos = twist * vec4(scaledPos, 1.0);
-
-    //bend X-aksen
-    float bendAngle = IsGrid ? 0.0 : scaledPos.z * BendAmount;
-    float cb = cos(bendAngle);
-    float sb = sin(bendAngle);
-    mat4 bend = mat4(
-        1.0, 0.0,   0.0, 0.0,
-        0.0,  cb,  -sb, 0.0,
-        0.0,  sb,   cb, 0.0,
-        0.0, 0.0,  0.0, 1.0
-    );
-    vec4 bentPos = bend * twistedPos;
-
-    vec4 localPos = R * bentPos;
-
-    if (!IsGrid) {
-        vec3 fromCenter = localPos.xyz;
-        float dist = length(fromCenter);
-        float bulge = exp(-dist * dist * 4.0) * BulgeAmount;
-        localPos.xyz += normalize(fromCenter) * bulge;
-    }
-
-    vec4 worldPos = Model * localPos;
-    gl_Position = Projection * worldPos;
-
-    uv = UV;
-    vertexColor = Color;
-}
         </textarea>
         
         <textarea id="fs" spellcheck="false">
